@@ -5,9 +5,9 @@ MouseInput mouse2 = new MouseInput(RIGHT);
 
 GameWindow window = new GameWindow();
 
-//String server_ip = "127.0.0.1";
-//int server_port = 5006;
-//Client client = new Client(this, server_ip, server_port);
+String server_ip = "127.0.0.1";
+int server_port = 5006;
+Client client = new Client(this, server_ip, server_port);
 
 void setup() {
   size(800, 600, P2D);
@@ -29,7 +29,7 @@ void handleInputs() {
     int[] xy = window.findClickedSquare();
 
     if (window.valid_coordinate(xy[0], xy[1])) {
-      
+      client.write("0:" + str(xy[0]) + ":" + str(xy[1]) + ":");
     }
   }
 
@@ -52,5 +52,5 @@ void clientEvent(Client someClient) {
   
   Packet data = new Packet(dataIn);
   
-  
+  window.setCell(data.m_data[0], data.m_data[1], data.m_data[2]);
 }
