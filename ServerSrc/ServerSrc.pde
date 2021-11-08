@@ -1,91 +1,36 @@
 import processing.net.*;
 Server server;
 
-class Game_Data {
-  int[][] m_grid_client;
-  int[][] m_grid_server;
-  int dim;
-
-  int[][] checks = { 
-    {-1, -1}, {0, -1}, {1, -1}, 
-    {-1, 0}, {1, 0}, 
-    {-1, 1}, {0, 1}, {1, 1} };
-
-  int getCell(int x, int y) {
-    return m_grid_server[x][y];
-  }
-
-  boolean validCoordinate(int x, int y) {
-    return ( (x >= 0) && (x < dim) && (y >= 0) && (y < dim));
-  }
-
-  void createGame(int dimensions, int bombs) {
-    dim = dimensions;
-    m_grid_client = new int[dimensions][dimensions];
-    m_grid_server = new int[dimensions][dimensions];
-
-    // Fresh template
-    for (int y = 0; y < dimensions; y++) {
-      for (int x = 0; x < dimensions; x++) {
-        m_grid_client[x][y] = 0;
-        m_grid_server[x][y] = 10;
-      }
-    }
-
-    // Place bombs
-    int bombs_placed = 0;
-    while (true) {
-      if (bombs_placed == bombs) {
-        break;
-      }
-      int x = (int)random(0, dimensions);
-      int y = (int)random(0, dimensions);
-
-      if (m_grid_server[x][y] == 10) {
-        m_grid_server[x][y] = 9;
-        bombs_placed++;
-      }
-    }
-
-    // Calculate numbers for bomb neighbours
-    for (int y = 0; y < dimensions; y++) {
-      for (int x = 0; x < dimensions; x++) {
-        if (getCell(x, y) == 10) {
-          int bombs_nearby = 0;
-          for (int i = 0; i < checks.length; i++) {
-            int new_x = x + checks[i][0];
-            int new_y = y + checks[i][1];
-            if (validCoordinate(new_x, new_y)) {
-              if (getCell(new_x, new_y) == 9) {
-                bombs_nearby ++;
-              }
-            }
-          }
-
-          if (bombs_nearby > 0) 
-            m_grid_server[x][y] = bombs_nearby;
-        }
-      }
-    }
-  }
-}
-
 Game_Data game_data = new Game_Data();
+
 void setup() {
   frameRate(240);
   size(400, 200); // Window not currently used.
   server = new Server(this, 5006);
 
-  game_data.createGame(25, 50);
+  game_data.createGame(5, 5);
 }
 
-int last_frame_count = 0;
+int last_update_count = 0;
 int update_offset = 4;
+
+int last_reset_count = 0;
+int reset_offset = 1500;
+
 void draw() {
 
-  if (frameCount > last_frame_count + update_offset) {
+  // Server Events
+  if (frameCount > last_update_count + update_offset) {
     // Update screen
-    last_frame_count = frameCount;
+    last_update_count = frameCount;
+  }
+
+  if (game_data.game_over) {
+    if (frameCount > last_reset_count + reset_offset) {
+      game_data.createGame(25, 50);
+      server.write("4:");
+      game_data.game_over = false;
+    }
   }
 
   Client client = server.available();
@@ -116,57 +61,32 @@ class ServerThread extends Thread {
   public void run() {
     if (data.m_id == 0) {
       int type = game_data.getCell(data.m_data[0], data.m_data[1]);
+      game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
+      if (type == 9) {
+        type = 12;
+        game_data.game_over = true;
+        game_data.reveal_game();
+        last_reset_count = frameCount;
+      }
       server.write(str(data.m_id) + ":" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":" + str(type) + ":");
+    } else if (data.m_id == 1) {
+      game_data.reveal_game();
+    } else if (data.m_id == 4) { // Flag 
+      game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 11;
+    } else if (data.m_id == 5) { // Unflag
+      game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 0;
     }
   }
 }
 
-void serverEvent(Server someServer, Client someClient) {
-  println("We have a new client: " + someClient.ip());
-}
-
-class Packet {
-  int m_id;
-  int[] m_data;
-
-  Packet(String r_data) {
-    parseData(r_data);
-  }
-
-  void parseData(String raw_data) {
-    int[] output;
-    int size = 0;
-
-    if (raw_data == null) {
-      return;
-    }
-
-    for (int i = 0; i < raw_data.length(); i++) { 
-      char c = raw_data.charAt(i);
-      if (c == ':') {
-        size ++;
-      }
-    }
-    size ++;
-    output = new int[size];
-
-    int index = 0;
-    String section = "";
-    for (int i = 0; i < raw_data.length(); i++) {
-      char c = raw_data.charAt(i);
-      if (c != ':') {
-        section += raw_data.charAt(i);
-      } else {
-        output[index] = Integer.parseInt(section);
-        section = "";
-        index ++;
-      }
-    }
-
-    m_id = output[0];
-    m_data = new int[output.length-1];
-    for (int i = 1; i < output.length; i++) {
-      m_data[i - 1] = output[i];
+void serverEvent(Server this_Server, Client joining_Client) {
+  String id = "3:";
+  String cells = "";
+  for (int y = 0; y < game_data.dim; y++) {
+    for (int x = 0; x < game_data.dim; x++) {
+      cells +=  str(game_data.m_grid_client[x][y]) + ":";
     }
   }
+  String dim = str(game_data.dim) + ":";
+  joining_Client.write(id + cells + dim);
 }
