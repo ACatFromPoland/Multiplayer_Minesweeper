@@ -1,6 +1,3 @@
-
-
-
 class texture_data {
   PImage image;
   String path;

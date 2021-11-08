@@ -18,9 +18,23 @@ void setup() {
 }
 
 void draw() {
-
   handleInputs();
   window.drawGui();
+}
+
+void clientEvent(Client server) { // Handle Data!
+  String dataIn = server.readString();
+  
+  Packet data = new Packet(dataIn);
+  if (data.m_id == 0)
+    window.setCell(data.m_data[0], data.m_data[1], data.m_data[2]);
+  if (data.m_id == 1) {
+    for (int y = 0; y < window.m_grid.length; y++) {
+      for (int x = 0; x < window.m_grid.length; x++) {
+        window.setCell(x, y, data.m_data[x + (window.m_grid.length * y)]);
+      }
+    }
+  }
 }
 
 void handleInputs() {
@@ -45,12 +59,4 @@ void handleInputs() {
       }
     }
   }
-}
-
-void clientEvent(Client someClient) {
-  String dataIn = someClient.readString();
-  
-  Packet data = new Packet(dataIn);
-  
-  window.setCell(data.m_data[0], data.m_data[1], data.m_data[2]);
 }
