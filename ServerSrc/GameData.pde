@@ -28,6 +28,47 @@ class Game_Data {
 
     server.write(id + cells);
   }
+  
+  void floodFill(int origin_x, int origin_y) {
+    int n = m_grid_client.length;
+    
+    ArrayList<int[]> queue = new ArrayList<int[]>();
+    int[] org = {origin_x, origin_y};
+    queue.add(org);
+    
+    //String squares = "5:";
+    
+    while (!queue.isEmpty()) {
+      int[] get_xy = queue.get(queue.size()-1);
+      queue.remove(queue.size() - 1);
+      int x = get_xy[0];
+      int y = get_xy[1];
+      
+      if ((x < 0) || (x >= n) || (y < 0) || (y >= n)) {
+        continue;
+      }
+      
+      if (m_grid_server[x][y] != 10)
+        continue;
+      
+      m_grid_client[x][y] = 0;
+      String message = "0:" + str(x) + ":" + str(y) + ":0:";
+      println(message);
+      server.write(message);
+      
+      int[] xy1 = {x + 1, y};
+      int[] xy2 = {x - 1, y};
+      int[] xy3 = {x, y + 1};
+      int[] xy4 = {x, y - 1};
+        
+      queue.add(xy1);
+      queue.add(xy2);
+      queue.add(xy3);
+      queue.add(xy4);
+    }
+    
+    //server.write(squares);
+  }
 
   void createGame(int dimensions, int bombs) {
     dim = dimensions;

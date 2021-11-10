@@ -1,4 +1,4 @@
-import processing.net.*; // git-test
+import processing.net.*;
 
 MouseInput mouse1 = new MouseInput(LEFT);
 MouseInput mouse2 = new MouseInput(RIGHT);
@@ -7,8 +7,8 @@ ButtonInput c_key = new ButtonInput('c');
 
 GameWindow window = new GameWindow();
 
-//String server_ip = "127.0.0.1";
-String server_ip = "79.97.212.70";
+String server_ip = "127.0.0.1";
+//String server_ip = "79.97.212.70";
 int server_port = 5006;
 Client client = new Client(this, server_ip, server_port);
 
@@ -53,9 +53,16 @@ void clientEvent(Client myClient) {
     if (data.m_id == 4) {
       window.coverAll();
     }
+    if (data.m_id == 5) { // Flood clear
+      for (int i = 0; i < data.m_data.length - 1; i += 3) {
+        int x = data.m_data[0 + i];
+        int y = data.m_data[1 + i];
+        int type = data.m_data[2 + i];
+        window.setCell(x, y, type);
+      }
+    }
   }
 }
-
 
 
 
@@ -76,7 +83,6 @@ void handleInputs() {
       client.write("0:" + str(xy[0]) + ":" + str(xy[1]) + ":");
     }
   }
-
 
   if (mouse2.isPressed()) {
     int[] xy = window.findClickedSquare();

@@ -8,7 +8,7 @@ void setup() {
   size(400, 200); // Window not currently used.
   server = new Server(this, 5006);
 
-  game_data.createGame(5, 5);
+  game_data.createGame(25, 80);
 }
 
 int last_update_count = 0;
@@ -27,7 +27,7 @@ void draw() {
 
   if (game_data.game_over) {
     if (frameCount > last_reset_count + reset_offset) {
-      game_data.createGame(25, 50);
+      game_data.createGame(25, 25);
       server.write("4:");
       game_data.game_over = false;
     }
@@ -59,22 +59,27 @@ class ServerThread extends Thread {
   }
 
   public void run() {
-    if (data.m_id == 0) {
+    if (data.m_id == 0) { // Request Cell
       int type = game_data.getCell(data.m_data[0], data.m_data[1]);
       game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
-      if (type == 9) {
+      if (type == 9) { // Game over
         type = 12;
         game_data.game_over = true;
         game_data.reveal_game();
         last_reset_count = frameCount;
       }
+      //else if (type == 10) { // hidden
+        //game_data.floodFill(data.m_data[0], data.m_data[1]);
+      //}
       server.write(str(data.m_id) + ":" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":" + str(type) + ":");
-    } else if (data.m_id == 1) {
+    } else if (data.m_id == 1) { // Remove this option later
       game_data.reveal_game();
     } else if (data.m_id == 4) { // Flag 
       game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 11;
+      server.write("0:" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":11:");
     } else if (data.m_id == 5) { // Unflag
       game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 0;
+      server.write("0:" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":0:");
     }
   }
 }
