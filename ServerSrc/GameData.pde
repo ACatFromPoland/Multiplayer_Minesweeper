@@ -17,6 +17,18 @@ class Game_Data {
     return ( (x >= 0) && (x < dim) && (y >= 0) && (y < dim));
   }
 
+  void update_client() {
+    String id = "1:";
+    String cells = "";
+    for (int y = 0; y < game_data.dim; y++) {
+      for (int x = 0; x < game_data.dim; x++) {
+        cells +=  str(game_data.m_grid_client[x][y]) + ":";
+      }
+    }
+
+    server.write(id + cells);
+  }
+
   void reveal_game() {
     String id = "1:";
     String cells = "";
@@ -28,46 +40,42 @@ class Game_Data {
 
     server.write(id + cells);
   }
-  
+
   void floodFill(int origin_x, int origin_y) {
     int n = m_grid_client.length;
-    
+
     ArrayList<int[]> queue = new ArrayList<int[]>();
     int[] org = {origin_x, origin_y};
     queue.add(org);
-    
-    //String squares = "5:";
-    
+
+    String squares = "5:";
+
     while (!queue.isEmpty()) {
-      int[] get_xy = queue.get(queue.size()-1);
-      queue.remove(queue.size() - 1);
-      int x = get_xy[0];
-      int y = get_xy[1];
-      
-      if ((x < 0) || (x >= n) || (y < 0) || (y >= n)) {
-        continue;
+      int[] xy = queue.get(queue.size()-1);
+      int x = xy[0];
+      int y = xy[1];
+      queue.remove(queue.size()-1);
+
+      println(queue.size());
+      if (validCoordinate(x, y)) {
+        if (m_grid_server[x][y] == 10) {
+          if (m_grid_client[x][y] == 0) {
+            println("Hello!");
+            m_grid_client[x][y] = 10;
+            server.write("0:" + str(x) + ":" + str(y) + ":10:");
+            squares += (str(x) + ":" + str(y) + ":" + str(m_grid_server[x][y]) + ":");
+
+            // , {x - 1, y}, {x, y + 1}, {x, y - 1} 
+            int[][] new_xys = { {x + 1, y}, {x - 1, y} };
+            for (int[] new_cord : new_xys) { 
+              queue.add(new_cord);
+            }
+          }
+        }
       }
-      
-      if (m_grid_server[x][y] != 10)
-        continue;
-      
-      m_grid_client[x][y] = 0;
-      String message = "0:" + str(x) + ":" + str(y) + ":0:";
-      println(message);
-      server.write(message);
-      
-      int[] xy1 = {x + 1, y};
-      int[] xy2 = {x - 1, y};
-      int[] xy3 = {x, y + 1};
-      int[] xy4 = {x, y - 1};
-        
-      queue.add(xy1);
-      queue.add(xy2);
-      queue.add(xy3);
-      queue.add(xy4);
     }
-    
-    //server.write(squares);
+
+    server.write(squares);
   }
 
   void createGame(int dimensions, int bombs) {
