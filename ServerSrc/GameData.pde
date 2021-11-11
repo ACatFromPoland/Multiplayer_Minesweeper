@@ -2,6 +2,7 @@ class Game_Data {
   int[][] m_grid_client;
   int[][] m_grid_server;
   int dim;
+  int bombs;
   boolean game_over = false;
 
   int[][] checks = { 
@@ -35,6 +36,7 @@ class Game_Data {
     for (int y = 0; y < game_data.dim; y++) {
       for (int x = 0; x < game_data.dim; x++) {
         cells +=  str(game_data.getCell(x, y)) + ":";
+        m_grid_client[x][y] = game_data.getCell(x, y);
       }
     }
 
@@ -56,21 +58,24 @@ class Game_Data {
       int y = xy[1];
       queue.remove(queue.size()-1);
 
-      println(queue.size());
       if (validCoordinate(x, y)) {
-        if (m_grid_server[x][y] == 10) {
+        int server_type = m_grid_server[x][y];
+        if (server_type == 10) {
           if (m_grid_client[x][y] == 0) {
-            println("Hello!");
             m_grid_client[x][y] = 10;
-            server.write("0:" + str(x) + ":" + str(y) + ":10:");
-            squares += (str(x) + ":" + str(y) + ":" + str(m_grid_server[x][y]) + ":");
+            squares += (str(x) + ":" + str(y) + ":" + str(server_type) + ":");
 
-            // , {x - 1, y}, {x, y + 1}, {x, y - 1} 
-            int[][] new_xys = { {x + 1, y}, {x - 1, y} };
+            int[][] new_xys = { 
+              {x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}, // Right, left, Down, Up
+              {x - 1, y - 1}, {x + 1, y - 1}, {x - 1, y + 1}, {x + 1, y + 1} // U_right, U_left, D_right, D_Left
+            };
             for (int[] new_cord : new_xys) { 
               queue.add(new_cord);
             }
           }
+        } else {
+          squares += (str(x) + ":" + str(y) + ":" + str(server_type) + ":");
+          m_grid_client[x][y] = server_type;
         }
       }
     }

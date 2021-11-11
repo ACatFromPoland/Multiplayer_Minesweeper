@@ -8,7 +8,9 @@ void setup() {
   size(400, 200); // Window not currently used.
   server = new Server(this, 5006);
 
-  game_data.createGame(10, 1);
+  game_data.dim = 25;
+  game_data.bombs = 20;
+  game_data.createGame(game_data.dim, game_data.bombs);
 }
 
 int last_update_count = 0;
@@ -21,14 +23,13 @@ void draw() {
 
   // Server Events
   if (frameCount > last_update_count + update_offset) {
-    // Update screen
-    //game_data.update_client();
+    game_data.update_client(); // Update screen
     last_update_count = frameCount;
   }
 
   if (game_data.game_over) {
     if (frameCount > last_reset_count + reset_offset) {
-      game_data.createGame(10, 1);
+      game_data.createGame(game_data.dim, game_data.bombs);
       server.write("4:");
       game_data.game_over = false;
     }
@@ -62,15 +63,16 @@ class ServerThread extends Thread {
   public void run() {
     if (data.m_id == 0) { // Request Cell
       int type = game_data.getCell(data.m_data[0], data.m_data[1]);
-      game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
       if (type == 9) { // Game over
         type = 12;
+        game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
         game_data.game_over = true;
         game_data.reveal_game();
         last_reset_count = frameCount;
       } else if (type == 10) { // hidden
         game_data.floodFill(data.m_data[0], data.m_data[1]);
       } else {
+        game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
         server.write(str(data.m_id) + ":" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":" + str(type) + ":");
       }
     } else if (data.m_id == 1) { // Remove this option later
