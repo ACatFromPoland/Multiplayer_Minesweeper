@@ -11,8 +11,10 @@ class GameWindow {
   float m_window_size;
 
   int[][] m_grid;
-
   texture_data[] m_textures;
+
+  int m_bombs;
+  String m_server_text = "";
 
   float m_grid_size_x;
   float m_grid_size_y;
@@ -32,6 +34,10 @@ class GameWindow {
     m_grid[x][y] = cell_type;
   }
   
+  int getCell(int x, int y) {
+    return m_grid[x][y];   
+  }
+  
   boolean valid_coordinate(int x, int y) {
     if ((x >= 0) && (x < m_grid.length) && (y >= 0) && y < (m_grid.length)) {
       return true;
@@ -42,6 +48,7 @@ class GameWindow {
   }
   
   void coverAll() {
+    m_server_text = "";
     for (int y = 0; y < m_grid.length; y++) {
       for (int x = 0; x < m_grid.length; x++) {
         m_grid[x][y] = 0;
@@ -86,6 +93,9 @@ class GameWindow {
         popMatrix();
       }
     }
+    textSize(20);
+    text("You: " + m_server_text, height + (((width - height)/2) - 60), height/3);
+    text(("Bombs: " + str(m_bombs)), height + (((width - height)/2) - (70 + (int)m_bombs % 10)), height/2);
   }
 
   void loadTextures() {

@@ -9,19 +9,19 @@ void setup() {
   server = new Server(this, 5006);
 
   game_data.dim = 25;
-  game_data.bombs = 20;
+  game_data.bombs = 80;
   game_data.createGame(game_data.dim, game_data.bombs);
 }
 
 int last_update_count = 0;
-int update_offset = 8;
+int update_offset = 10;
 
 int last_reset_count = 0;
 int reset_offset = 1500;
 
 void draw() {
-
   // Server Events
+
   if (frameCount > last_update_count + update_offset) {
     game_data.update_client(); // Update screen
     last_update_count = frameCount;
@@ -30,9 +30,16 @@ void draw() {
   if (game_data.game_over) {
     if (frameCount > last_reset_count + reset_offset) {
       game_data.createGame(game_data.dim, game_data.bombs);
-      server.write("4:");
+      server.write("4:" + str(game_data.dim) + ":" + str(game_data.bombs) + ":");
       game_data.game_over = false;
     }
+  }
+
+  if (game_data.bombs_flagged == game_data.bombs) {
+    server.write("2Win");
+    game_data.game_over = true;
+    last_reset_count = frameCount;
+    game_data.bombs_flagged = -1;
   }
 
   Client client = server.available();
@@ -65,6 +72,7 @@ class ServerThread extends Thread {
       int type = game_data.getCell(data.m_data[0], data.m_data[1]);
       if (type == 9) { // Game over
         type = 12;
+        server.write("2Lose");
         game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
         game_data.game_over = true;
         game_data.reveal_game();
@@ -79,9 +87,15 @@ class ServerThread extends Thread {
       game_data.reveal_game();
     } else if (data.m_id == 4) { // Flag 
       game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 11;
+      if (game_data.getCell(data.m_data[0], data.m_data[1]) == 9) {
+        game_data.bombs_flagged ++;
+      }
       server.write("0:" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":11:");
     } else if (data.m_id == 5) { // Unflag
       game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 0;
+      if (game_data.getCell(data.m_data[0], data.m_data[1]) == 9) {
+        game_data.bombs_flagged --;
+      }
       server.write("0:" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":0:");
     }
   }
@@ -96,5 +110,6 @@ void serverEvent(Server this_Server, Client joining_Client) {
     }
   }
   String dim = str(game_data.dim) + ":";
-  joining_Client.write(id + cells + dim);
+  String bombs = str(game_data.bombs) + ":";
+  joining_Client.write(id + cells + bombs + dim);
 }

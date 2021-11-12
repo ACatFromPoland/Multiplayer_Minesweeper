@@ -3,6 +3,7 @@ class Game_Data {
   int[][] m_grid_server;
   int dim;
   int bombs;
+  int bombs_flagged;
   boolean game_over = false;
 
   int[][] checks = { 
@@ -87,6 +88,7 @@ class Game_Data {
     dim = dimensions;
     m_grid_client = new int[dimensions][dimensions];
     m_grid_server = new int[dimensions][dimensions];
+    bombs_flagged = 0;
 
     // Fresh template
     for (int y = 0; y < dimensions; y++) {
