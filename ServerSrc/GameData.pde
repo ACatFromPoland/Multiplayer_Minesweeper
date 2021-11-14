@@ -1,121 +1,60 @@
-class Game_Data {
-  int[][] m_grid_client;
-  int[][] m_grid_server;
-  int dim;
-  int bombs;
-  int bombs_flagged;
+
+class Game {
+  int[][] grid_client;
+  int[][] grid_server;
+  int m_dimensions;
+  int m_bombs;
+
   boolean game_over = false;
 
-  int[][] checks = { 
+  int[][] checks = { // Used for flood-clear
     {-1, -1}, {0, -1}, {1, -1}, 
     {-1, 0}, {1, 0}, 
-    {-1, 1}, {0, 1}, {1, 1} };
+    {-1, 1}, {0, 1}, {1, 1} 
+  };
 
   int getCell(int x, int y) {
-    return m_grid_server[x][y];
+    return grid_server[x][y];
+  }
+
+  void setCell(int x, int y, int t) { 
+    grid_server[x][y] = t;
   }
 
   boolean validCoordinate(int x, int y) {
-    return ( (x >= 0) && (x < dim) && (y >= 0) && (y < dim));
+    return ( (x >= 0) && (x < m_dimensions) && (y >= 0) && (y < m_dimensions));
   }
 
-  void update_client() {
-    String id = "1:";
-    String cells = "";
-    for (int y = 0; y < game_data.dim; y++) {
-      for (int x = 0; x < game_data.dim; x++) {
-        cells +=  str(game_data.m_grid_client[x][y]) + ":";
+  Game(int dims, int bombs) {
+    m_dimensions = dims;
+    m_bombs = bombs;
+
+    grid_client = new int[m_dimensions][m_dimensions];
+    grid_server = new int[m_dimensions][m_dimensions];
+
+    for (int y = 0; y < m_dimensions; y++) {
+      for (int x = 0; x < m_dimensions; x++) {
+        grid_client[x][y] = 0;
+        grid_server[x][y] = 10;
       }
     }
 
-    server.write(id + cells);
-  }
-
-  void reveal_game() {
-    String id = "1:";
-    String cells = "";
-    for (int y = 0; y < game_data.dim; y++) {
-      for (int x = 0; x < game_data.dim; x++) {
-        cells +=  str(game_data.getCell(x, y)) + ":";
-        m_grid_client[x][y] = game_data.getCell(x, y);
-      }
-    }
-
-    server.write(id + cells);
-  }
-
-  void floodFill(int origin_x, int origin_y) {
-    int n = m_grid_client.length;
-
-    ArrayList<int[]> queue = new ArrayList<int[]>();
-    int[] org = {origin_x, origin_y};
-    queue.add(org);
-
-    String squares = "5:";
-
-    while (!queue.isEmpty()) {
-      int[] xy = queue.get(queue.size()-1);
-      int x = xy[0];
-      int y = xy[1];
-      queue.remove(queue.size()-1);
-
-      if (validCoordinate(x, y)) {
-        int server_type = m_grid_server[x][y];
-        if (server_type == 10) {
-          if (m_grid_client[x][y] == 0) {
-            m_grid_client[x][y] = 10;
-            squares += (str(x) + ":" + str(y) + ":" + str(server_type) + ":");
-
-            int[][] new_xys = { 
-              {x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}, // Right, left, Down, Up
-              {x - 1, y - 1}, {x + 1, y - 1}, {x - 1, y + 1}, {x + 1, y + 1} // U_right, U_left, D_right, D_Left
-            };
-            for (int[] new_cord : new_xys) { 
-              queue.add(new_cord);
-            }
-          }
-        } else {
-          squares += (str(x) + ":" + str(y) + ":" + str(server_type) + ":");
-          m_grid_client[x][y] = server_type;
-        }
-      }
-    }
-
-    server.write(squares);
-  }
-
-  void createGame(int dimensions, int bombs) {
-    dim = dimensions;
-    m_grid_client = new int[dimensions][dimensions];
-    m_grid_server = new int[dimensions][dimensions];
-    bombs_flagged = 0;
-
-    // Fresh template
-    for (int y = 0; y < dimensions; y++) {
-      for (int x = 0; x < dimensions; x++) {
-        m_grid_client[x][y] = 0;
-        m_grid_server[x][y] = 10;
-      }
-    }
-
-    // Place bombs
     int bombs_placed = 0;
     while (true) {
       if (bombs_placed == bombs) {
         break;
       }
-      int x = (int)random(0, dimensions);
-      int y = (int)random(0, dimensions);
+      int x = (int)random(0, m_dimensions);
+      int y = (int)random(0, m_dimensions);
 
-      if (m_grid_server[x][y] == 10) {
-        m_grid_server[x][y] = 9;
+      if (getCell(x, y) == 10) {
+        setCell(x, y, 9);
         bombs_placed++;
       }
     }
 
-    // Calculate numbers for bomb neighbours
-    for (int y = 0; y < dimensions; y++) {
-      for (int x = 0; x < dimensions; x++) {
+    for (int y = 0; y < m_dimensions; y++) {
+      for (int x = 0; x < m_dimensions; x++) {
         if (getCell(x, y) == 10) {
           int bombs_nearby = 0;
           for (int i = 0; i < checks.length; i++) {
@@ -127,11 +66,29 @@ class Game_Data {
               }
             }
           }
-
-          if (bombs_nearby > 0) 
-            m_grid_server[x][y] = bombs_nearby;
+          
+          if (bombs_nearby > 0)
+            grid_server[x][y] = bombs_nearby;
         }
       }
+    }
+  }
+}
+
+class Event {
+  int last_frame_count;
+  int frame_offset;
+
+  Event (int n) {
+    frame_offset = n;
+  }
+
+  boolean active() {
+    if (frameCount > last_frame_count + frame_offset) {
+      last_frame_count = frameCount;
+      return true;
+    } else {
+      return false;
     }
   }
 }

@@ -1,115 +1,62 @@
 import processing.net.*;
-Server server;
+Server server = new Server(this, 5006);
 
-Game_Data game_data = new Game_Data();
+Game game_data;
+Event client_update = new Event(10);
+Event client_restart = new Event(1500);
+
+int grid_dimension = 25;
+int bombs = 80;
+int max_players = 16;
 
 void setup() {
   frameRate(240);
-  size(400, 200); // Window not currently used.
-  server = new Server(this, 5006);
-
-  game_data.dim = 25;
-  game_data.bombs = 80;
-  game_data.createGame(game_data.dim, game_data.bombs);
+  size(400, 200);
+  surface.setResizable(false);
+  game_data = new Game(grid_dimension, bombs);
 }
 
-int last_update_count = 0;
-int update_offset = 10;
-
-int last_reset_count = 0;
-int reset_offset = 1500;
-
 void draw() {
-  // Server Events
-
-  if (frameCount > last_update_count + update_offset) {
-    game_data.update_client(); // Update screen
-    last_update_count = frameCount;
+  if (client_update.active()) {
+    // update client screens
+  }
+  if (client_restart.active()) {
+    // setup() 
+    // send new grid data to clients
   }
 
-  if (game_data.game_over) {
-    if (frameCount > last_reset_count + reset_offset) {
-      game_data.createGame(game_data.dim, game_data.bombs);
-      server.write("4:" + str(game_data.dim) + ":" + str(game_data.bombs) + ":");
-      game_data.game_over = false;
-    }
-  }
-
-  if (game_data.bombs_flagged == game_data.bombs) {
-    server.write("2Win");
-    game_data.game_over = true;
-    last_reset_count = frameCount;
-    game_data.bombs_flagged = -1;
-  }
+  //if (game_data.bombs_flagged == game_data.bombs) {
+    // send win event to clients
+    // start game_over sequence
+  //}
 
   Client client = server.available();
   {
     if (client != null) {
-      String raw_data = client.readString();
-
+      byte[] raw_data = client.readBytes();
       if (raw_data != null) {
-        // Handle client message through seperate thread to make room for others.
-        new ServerThread(raw_data).start();
+        DataPacket data = parseData(raw_data);
+        if (data != null) {
+          if (data.id == 1) {
+            int type = game_data.getCell(data.cells[0][0], data.cells[0][1]);
+            
+            DataPacket packet = new DataPacket(grid_dimension, max_players);
+            packet.id = 1;
+            packet.cells[0][0] = data.cells[0][0];
+            packet.cells[0][1] = data.cells[0][1];
+            packet.cells[0][2] = type;
+            
+            byte[] response = packageData(packet);
+            server.write(response);
+          }
+        }
       }
     }
   }
 }
 
-// Code taken from Kevin Workman
-// On the post https://forum.processing.org/two/discussion/8435/how-to-pass-parameter-to-function-in-separated-thread.html
-// Summary ./
-// Processing thread() function doesn't allow parameeters.
-// This class extends the Java thread and so we can store the parameeters in this new classes memory to use during the run time on this thread
-class ServerThread extends Thread {
-  Packet data;
-
-  public ServerThread(String raw_data) {
-    data = new Packet(raw_data);
-  }
-
-  public void run() {
-    if (data.m_id == 0) { // Request Cell
-      int type = game_data.getCell(data.m_data[0], data.m_data[1]);
-      if (type == 9) { // Game over
-        type = 12;
-        server.write("2Lose");
-        game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
-        game_data.game_over = true;
-        game_data.reveal_game();
-        last_reset_count = frameCount;
-      } else if (type == 10) { // hidden
-        game_data.floodFill(data.m_data[0], data.m_data[1]);
-      } else {
-        game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = type;
-        server.write(str(data.m_id) + ":" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":" + str(type) + ":");
-      }
-    } else if (data.m_id == 1) { // Remove this option later
-      game_data.reveal_game();
-    } else if (data.m_id == 4) { // Flag 
-      game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 11;
-      if (game_data.getCell(data.m_data[0], data.m_data[1]) == 9) {
-        game_data.bombs_flagged ++;
-      }
-      server.write("0:" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":11:");
-    } else if (data.m_id == 5) { // Unflag
-      game_data.m_grid_client[data.m_data[0]][data.m_data[1]] = 0;
-      if (game_data.getCell(data.m_data[0], data.m_data[1]) == 9) {
-        game_data.bombs_flagged --;
-      }
-      server.write("0:" + str(data.m_data[0]) + ":" + str(data.m_data[1]) + ":0:");
-    }
-  }
-}
-
-void serverEvent(Server this_Server, Client joining_Client) {
-  String id = "3:";
-  String cells = "";
-  for (int y = 0; y < game_data.dim; y++) {
-    for (int x = 0; x < game_data.dim; x++) {
-      cells +=  str(game_data.m_grid_client[x][y]) + ":";
-    }
-  }
-  String dim = str(game_data.dim) + ":";
-  String bombs = str(game_data.bombs) + ":";
-  joining_Client.write(id + cells + bombs + dim);
+void serverEvent(Client joining_Client) {
+  // Send client current grid
+  // Send client bombs
+  // Send client dimensions
 }

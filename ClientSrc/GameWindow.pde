@@ -1,54 +1,84 @@
-class texture_data {
-  PImage image;
-  String path;
-  texture_data (PImage _null, String _path) {
-    image = _null;
-    path = _path;
-  }
-}
+import processing.net.*;
 
-class GameWindow {
+class Game extends PWindow {
+  Client m_client;
+
   float m_window_size;
-
   int[][] m_grid;
-  texture_data[] m_textures;
-
   int m_bombs;
-  String m_server_text = "";
+  int max_players;
 
-  float m_grid_size_x;
-  float m_grid_size_y;
-  float m_cell_width;
-  float m_cell_height;
-  
+  float m_cell_size_center;
+  float m_cell_size;
+
+  MouseInput mouse1 = new MouseInput(LEFT);
+
+  Game() {
+    loadTextures();
+
+    // window_size should always be height
+    newGrid(600, 25);
+    coverAll();
+  }
+
+  void handleInputs() {
+    if (mouse1.isPressed()) {
+      int[] xy = findClickedSquare();
+      if (valid_coordinate(xy[0], xy[1])) {
+        if (getCell(xy[0], xy[1]) != 11) {
+          DataPacket packet = new DataPacket((int)m_window_size, max_players);
+          packet.id = 1;
+          packet.cells[0][0] = xy[0];
+          packet.cells[0][1] = xy[1];
+
+          byte[] response = packageData(packet);
+          m_client.write(response);
+        }
+      }
+    }
+  }
+
+  void handleNetwork() {
+    if (m_client.available() > 0) { 
+      byte[] raw_data = m_client.readBytes();
+      if (raw_data != null) {
+        DataPacket data = parseData(raw_data);
+        if (data != null) {
+          if (data.id == 1) {
+            setCell(data.cells[0][0], data.cells[0][1], data.cells[0][2]);
+          }
+        }
+      }
+    }
+  }
+
+  boolean connect_client(PApplet pWindow, String ip, int port) {
+    m_client = new Client(pWindow, ip, port);
+    return m_client.active();
+  }
+
   int[] findClickedSquare() {
-    int[] grid_index_xy = {(int)((mouseX / m_grid_size_x)/2), (int)((mouseY / m_grid_size_y)/2)};
+    int[] grid_index_xy = {(int)((mouseX / m_cell_size_center)/2), (int)((mouseY / m_cell_size_center)/2)};
     return grid_index_xy;
   }
-  
-  int getType(int x, int y) {
-    return m_grid[x][y];
-  }
-  
-  void setCell(int x, int y, int cell_type) {
-    m_grid[x][y] = cell_type;
-  }
-  
-  int getCell(int x, int y) {
-    return m_grid[x][y];   
-  }
-  
+
   boolean valid_coordinate(int x, int y) {
     if ((x >= 0) && (x < m_grid.length) && (y >= 0) && y < (m_grid.length)) {
       return true;
-    }
-    else {
+    } else {
       return false;
     }
   }
-  
+
+  void setCell(int x, int y, int cell_type) {
+    m_grid[x][y] = cell_type;
+  }
+
+  int getCell(int x, int y) {
+    return m_grid[x][y];
+  }
+
   void coverAll() {
-    m_server_text = "";
     for (int y = 0; y < m_grid.length; y++) {
       for (int x = 0; x < m_grid.length; x++) {
         m_grid[x][y] = 0;
@@ -56,46 +86,39 @@ class GameWindow {
     }
   }
 
-  void updateGrid(int window_size, int grid_size) {
+  void newGrid(int window_size, int grid_size) {
     m_window_size = window_size;
     m_grid = new int[grid_size][grid_size];
-    
-    // I need to change these names...
-    m_grid_size_x = ((float)window_size/m_grid.length)/2;
-    m_grid_size_y = ((float)window_size/m_grid.length)/2;
-    
-    // These are fine.
-    m_cell_width = (float)window_size/m_grid.length;
-    m_cell_height = (float)window_size/m_grid.length;
+
+    m_cell_size = (float)window_size/m_grid.length;
+
+    m_cell_size_center = m_cell_size/2;
   }
 
   void drawGui() {
     background(120);
     for (int y = 0; y < m_grid.length; y++) {
       for (int x = 0; x < m_grid.length; x++) {
-        float offset_x = m_cell_width * x;
-        float offset_y = m_cell_height * y;
+        float offset_x = m_cell_size * x;
+        float offset_y = m_cell_size * y;
 
         textureMode(NORMAL);
         noStroke();
         pushMatrix();
-        translate(m_grid_size_x, m_grid_size_y);
+        translate(m_cell_size_center, m_cell_size_center);
         beginShape();
-        
+
         texture(m_textures[m_grid[x][y]].image);
-        
-        vertex(-m_grid_size_x + offset_x, -m_grid_size_y + offset_y, 0, 0);
-        vertex(m_grid_size_x + offset_x, -m_grid_size_y + offset_y, 1, 0);
-        vertex(m_grid_size_x + offset_x, m_grid_size_y + offset_y, 1, 1);
-        vertex(-m_grid_size_x + offset_x, m_grid_size_y + offset_y, 0, 1);
-        
+
+        vertex(-m_cell_size_center + offset_x, -m_cell_size_center + offset_y, 0, 0);
+        vertex(m_cell_size_center + offset_x, -m_cell_size_center + offset_y, 1, 0);
+        vertex(m_cell_size_center + offset_x, m_cell_size_center + offset_y, 1, 1);
+        vertex(-m_cell_size_center + offset_x, m_cell_size_center + offset_y, 0, 1);
+
         endShape(CLOSE);
         popMatrix();
       }
     }
-    textSize(20);
-    text("You: " + m_server_text, height + (((width - height)/2) - 60), height/3);
-    text(("Bombs: " + str(m_bombs)), height + (((width - height)/2) - (70 + (int)m_bombs % 10)), height/2);
   }
 
   void loadTextures() {
