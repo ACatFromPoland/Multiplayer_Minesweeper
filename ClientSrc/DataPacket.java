@@ -1,8 +1,4 @@
 import java.io.Serializable;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ByteArrayInputStream;
 
 // https://forum.processing.org/one/topic/serializable-problem.html
 class DataPacket implements Serializable {

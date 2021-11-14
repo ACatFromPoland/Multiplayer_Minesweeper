@@ -2,51 +2,119 @@ import processing.net.*;
 
 class Game extends PWindow {
   Client m_client;
+  int client_id;
 
   float m_window_size;
+  int screen_size;
   int[][] m_grid;
   int m_bombs;
   int max_players;
+  boolean initalised = false;
 
   float m_cell_size_center;
   float m_cell_size;
 
   MouseInput mouse1 = new MouseInput(LEFT);
+  MouseInput mouse2 = new MouseInput(RIGHT);
 
   Game() {
     loadTextures();
 
-    // window_size should always be height
-    newGrid(600, 25);
-    coverAll();
-  }
-
-  void handleInputs() {
-    if (mouse1.isPressed()) {
-      int[] xy = findClickedSquare();
-      if (valid_coordinate(xy[0], xy[1])) {
-        if (getCell(xy[0], xy[1]) != 11) {
-          DataPacket packet = new DataPacket((int)m_window_size, max_players);
-          packet.id = 1;
-          packet.cells[0][0] = xy[0];
-          packet.cells[0][1] = xy[1];
-
-          byte[] response = packageData(packet);
-          m_client.write(response);
-        }
-      }
-    }
+    // Stops user from pressing square when joining.
+    mouse1.m_pressed = true;
+    mouse2.m_pressed = true;
   }
 
   void handleNetwork() {
+    if (!initalised) {
+      DataPacket packet = new DataPacket(screen_size, max_players);
+      packet.id = 0;
+      byte[] response = packageData(packet);
+      m_client.write(response);
+    } 
     if (m_client.available() > 0) { 
       byte[] raw_data = m_client.readBytes();
       if (raw_data != null) {
         DataPacket data = parseData(raw_data);
         if (data != null) {
-          if (data.id == 1) {
-            setCell(data.cells[0][0], data.cells[0][1], data.cells[0][2]);
+          if (data.id == 0) { // GAME_INF
+            client_id = data.player_id;
+            max_players = data.max_player_size;
+            m_bombs = data.cells[0][0]; // Re-purposing some memory
+            screen_size = data.cells[0][1];
+            newGrid(600, screen_size);
+            int i = 0;
+            for (int y = 0; y < m_grid.length; y++) {
+              for (int x = 0; x < m_grid.length; x++) {
+                setCell(x, y, data.screen[i]);
+                i++;
+              }
+            }
+            initalised = true;
+          } 
+          if (initalised) {
+            if (data.id == 1) { // REVEAL_CELL
+              setCell(data.cells[0][0], data.cells[0][1], data.cells[0][2]);
+            } else if (data.id == 2) { // FLAG_CELL
+              setCell(data.cells[0][0], data.cells[0][1], 11);
+              // Bomb counter -1
+            } else if (data.id == 3) { // UNFLAG_CELL
+              setCell(data.cells[0][0], data.cells[0][1], 0);
+              // Bomb counter +1
+            } else if (data.id == 4) { // FLOOD_FILL
+              for (int[] cell : data.cells) {
+                setCell(cell[0], cell[1], cell[2]);
+              }
+            } else if (data.id == 5) { // UPDATE_SCREEN
+              int i = 0;
+              for (int y = 0; y < m_grid.length; y++) {
+                for (int x = 0; x < m_grid.length; x++) {
+                  setCell(x, y, data.screen[i]);
+                  i++;
+                }
+              }
+            } else if (data.id == 6) { // RESTART_GAME
+              newGrid(600, data.screen[0]); // Re-purposing array for screen cells here
+              coverAll();
+            }
           }
+        }
+      }
+    }
+  }
+
+  void handleInputs() {
+    if (mouse1.isPressed()) {
+      int[] xy = findClickedSquare();
+      if (valid_coordinate(xy[0], xy[1])) {   
+        if (getCell(xy[0], xy[1]) == 0) {
+          DataPacket packet = new DataPacket(screen_size * 2, max_players);
+          packet.id = 1;
+          packet.cells[0] = new int[]{xy[0], xy[1]};
+          byte[] response = packageData(packet);
+          m_client.write(response);
+        }
+      }
+    }
+
+    if (mouse2.isPressed()) {
+      int[] xy = findClickedSquare();
+      if (valid_coordinate(xy[0], xy[1])) {
+        int type = getCell(xy[0], xy[1]);
+        if (type != 11 && type == 0) {
+          // Bomb counter -1
+          DataPacket packet = new DataPacket(screen_size * 2, max_players);
+          packet.id = 2;
+          packet.cells[0] = new int[]{xy[0], xy[1], 11};
+          byte[] response = packageData(packet);
+          m_client.write(response);
+        } else if (type == 11) {
+          // Bomb counter +1
+          DataPacket packet = new DataPacket(screen_size * 2, max_players);
+          packet.id = 3;
+          packet.cells[0] = new int[]{xy[0], xy[1], 0};
+          byte[] response = packageData(packet);
+          m_client.write(response);
         }
       }
     }

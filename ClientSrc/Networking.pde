@@ -29,6 +29,18 @@ static Object writeToObject(byte[] raw_data) throws IOException, ClassNotFoundEx
   return obj_inpS.readObject();
 }
 
+// I don't know how to use this :/
+// Keeps giving me weird errors that I think have to do with processing.
+enum pt {
+  GAME_INF, // 0
+  REVEAL_CELL, // 1
+  FLAG_CELL, // 2
+  UNFLAG_CELL, // 3
+  FLOOD_FILL, // 4
+  UPDATE_SCREEN, // 5
+  RESTART_GAME // 6
+}
+
 DataPacket parseData(byte[] raw_data) {
   try {
     return (DataPacket) writeToObject(raw_data);
