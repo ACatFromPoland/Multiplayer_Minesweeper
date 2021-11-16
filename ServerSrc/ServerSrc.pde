@@ -1,4 +1,5 @@
 import processing.net.*;
+import java.net.InetAddress;
 Server server = new Server(this, 5006);
 
 Game game_data;
@@ -7,18 +8,35 @@ Event client_restart = new Event(1500);
 
 // 185 is basically the max
 int grid_dimension = 35;
-int bombs = 1;
+int bombs = 400;
 int max_players = 16;
+
+InetAddress inet;
+String myIP;
 
 void setup() {
   frameRate(240);
   size(400, 200);
   surface.setResizable(false);
   game_data = new Game(grid_dimension, bombs);
+  
+  // Thank you 
+  try {
+    inet = InetAddress.getLocalHost();
+    myIP = inet.getHostAddress();
+  }
+  catch (Exception e) {
+    e.printStackTrace();
+    myIP = "couldnt get IP";
+  }
 }
 
 void draw() {
-  println(bombs, game_data.m_bombs, game_data.user_flags);
+  fill(0);
+  textSize(23);
+  text("Server LAN IP: " + myIP, width/14, height/1.9);
+  text("Port: 5006", width/14, height/1.2);
+
   if (client_update.active()) {
     // update client screens
     DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);

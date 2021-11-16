@@ -85,6 +85,7 @@ class Game extends PWindow {
                   i++;
                 }
               }
+              m_bombs = data.cells[0][1];
               newGrid(600, data.cells[0][0]); // Re-purposing array for screen cells here
               coverAll();
             }
