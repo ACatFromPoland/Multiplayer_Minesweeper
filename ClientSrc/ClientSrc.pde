@@ -7,7 +7,7 @@ Game game_window;
 void setup() {
   size(800, 600, P2D);
   menu_window = new Menu();
-  menu_window.version = "4.0.2";
+  menu_window.version = "4.0.3";
 }
 
 void draw() {

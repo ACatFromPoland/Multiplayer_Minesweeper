@@ -8,6 +8,7 @@ class Game extends PWindow {
   int screen_size;
   int[][] m_grid;
   int m_bombs;
+  String m_message = "";
   int max_players;
   boolean initalised = false;
 
@@ -41,6 +42,7 @@ class Game extends PWindow {
             client_id = data.player_id;
             max_players = data.max_player_size;
             m_bombs = data.cells[0][0]; // Re-purposing some memory
+
             screen_size = data.cells[0][1];
             newGrid(600, screen_size);
             int i = 0;
@@ -57,9 +59,11 @@ class Game extends PWindow {
               setCell(data.cells[0][0], data.cells[0][1], data.cells[0][2]);
             } else if (data.id == 2) { // FLAG_CELL
               setCell(data.cells[0][0], data.cells[0][1], 11);
+              m_bombs -= 1;
               // Bomb counter -1
             } else if (data.id == 3) { // UNFLAG_CELL
               setCell(data.cells[0][0], data.cells[0][1], 0);
+              m_bombs += 1;
               // Bomb counter +1
             } else if (data.id == 4) { // FLOOD_FILL
               for (int[] cell : data.cells) {
@@ -74,7 +78,14 @@ class Game extends PWindow {
                 }
               }
             } else if (data.id == 6) { // RESTART_GAME
-              newGrid(600, data.screen[0]); // Re-purposing array for screen cells here
+              int i = 0;
+              for (int y = 0; y < m_grid.length; y++) {
+                for (int x = 0; x < m_grid.length; x++) {
+                  setCell(x, y, data.screen[i]);
+                  i++;
+                }
+              }
+              newGrid(600, data.cells[0][0]); // Re-purposing array for screen cells here
               coverAll();
             }
           }
@@ -165,6 +176,7 @@ class Game extends PWindow {
 
   void drawGui() {
     background(120);
+    // Grid
     for (int y = 0; y < m_grid.length; y++) {
       for (int x = 0; x < m_grid.length; x++) {
         float offset_x = m_cell_size * x;
@@ -187,6 +199,27 @@ class Game extends PWindow {
         popMatrix();
       }
     }
+
+    // UI
+    textureMode(NORMAL);
+    noStroke();
+    pushMatrix();
+    translate(600, 0);
+    beginShape();
+
+    texture(m_textures[13].image);
+
+    vertex(0, 0, 0, 0);
+    vertex(200, 0, 1, 0);
+    vertex(200, 600, 1, 1);
+    vertex(0, 600, 0, 1);
+
+    endShape(CLOSE);
+    popMatrix();
+
+    fill(0);
+    text("Bombs:" + m_bombs, 30 + 600, 65);
+    text("You:" + m_message, 30 + 600, 165);
   }
 
   void loadTextures() {
@@ -205,7 +238,8 @@ class Game extends PWindow {
       new texture_data(null, "Content/Mine.png"), // 9
       new texture_data(null, "Content/Empty.png"), // 10
       new texture_data(null, "Content/Flag.png"), // 11
-      new texture_data(null, "Content/MineClicked.png") // 12
+      new texture_data(null, "Content/MineClicked.png"), // 12
+      new texture_data(null, "Content/GameUI.png") // 13
     };
 
     // Load the image for every path provided.

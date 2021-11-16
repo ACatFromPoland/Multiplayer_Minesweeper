@@ -6,8 +6,8 @@ Event client_update = new Event(6);
 Event client_restart = new Event(1500);
 
 // 185 is basically the max
-int grid_dimension = 15;
-int bombs = 5;
+int grid_dimension = 35;
+int bombs = 1;
 int max_players = 16;
 
 void setup() {
@@ -18,6 +18,7 @@ void setup() {
 }
 
 void draw() {
+  println(bombs, game_data.m_bombs, game_data.user_flags);
   if (client_update.active()) {
     // update client screens
     DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
@@ -32,15 +33,31 @@ void draw() {
     byte[] response = packageData(packet);
     server.write(response);
   }
-  if (client_restart.active()) {
+  if (client_restart.active() && game_data.game_over) {
     // setup() 
+    game_data = new Game(grid_dimension, bombs);
+    game_data.game_over = false;
+    DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
+    packet.id = 6;
+    packet.cells[0][0] = grid_dimension;
+    packet.cells[0][1] = bombs;
+    int i = 0;
+    for (int y = 0; y < grid_dimension; y++) {
+      for (int x = 0; x < grid_dimension; x++) {
+        packet.screen[i] = game_data.grid_client[x][y];
+        i++;
+      }
+    }
+    byte[] response = packageData(packet);
+    server.write(response);
     // send new grid data to clients
   }
 
-  //if (game_data.bombs_flagged == game_data.bombs) {
-  // send win event to clients
-  // start game_over sequence
-  //}
+  if (game_data.m_bombs == 0 && bombs == game_data.user_flags) {
+    game_data.game_over = true;
+    //send win event to clients
+    //start game_over sequence
+  }
 
   Client client = server.available();
   {
@@ -85,6 +102,11 @@ void draw() {
               server.write(response);
             }
           } else if (data.id == 2) { // Flag request
+            // Stop client from spamming id.2 && id.3 later
+            if (game_data.grid_server[data.cells[0][0]][data.cells[0][1]] == 9) {
+              game_data.m_bombs -= 1;
+            }
+            game_data.user_flags += 1;
             DataPacket packet = new DataPacket(grid_dimension * 2, max_players);
             packet.id = 2;
             packet.cells[0] = new int[] {data.cells[0][0], data.cells[0][1], 11};
@@ -92,6 +114,10 @@ void draw() {
             byte[] response = packageData(packet);
             server.write(response);
           } else if (data.id == 3) { // Unflag request
+            if (game_data.grid_server[data.cells[0][0]][data.cells[0][1]] == 9) {
+              game_data.m_bombs += 1;
+            }
+            game_data.user_flags -= 1;
             DataPacket packet = new DataPacket(grid_dimension * 2, max_players);
             packet.id = 3;
             packet.cells[0] = new int[] {data.cells[0][0], data.cells[0][1], 0};
@@ -110,7 +136,7 @@ void serverEvent(Client joining_Client) {
   DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
   packet.id = 0;
   packet.max_player_size = max_players;
-  packet.cells[0][0] = bombs;
+  packet.cells[0][0] = game_data.m_bombs;
   packet.cells[0][1] = grid_dimension;  
 
   int i = 0;

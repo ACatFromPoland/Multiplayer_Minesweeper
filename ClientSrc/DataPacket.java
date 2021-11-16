@@ -9,7 +9,7 @@ class DataPacket implements Serializable {
   int[][] cells;
   char[] game_state;
   int[][] player_cursors;
-
+  
   DataPacket(int grid_size, int max_players) {
     screen = new int[grid_size];
     cells = new int [grid_size][3];

@@ -4,6 +4,8 @@ class Game {
   int[][] grid_server;
   int m_dimensions;
   int m_bombs;
+  
+  int user_flags = 0;
 
   boolean game_over = false;
 

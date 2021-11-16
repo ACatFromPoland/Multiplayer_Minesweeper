@@ -18,7 +18,6 @@ class ButtonInput {
     } else {
       m_pressed = false;
     }
-
     return false;
   }
 }
@@ -41,7 +40,6 @@ class MouseInput {
     } else {
       m_pressed = false;
     }
-
     return false;
   }
 }
