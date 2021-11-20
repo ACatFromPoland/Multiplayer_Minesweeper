@@ -1,166 +1,163 @@
-class Menu extends PWindow {
-  String version = "";
 
-  String port = "";
-  String ip = "";
+class MenuWindow {
+	String version = "";
 
-  boolean port_selected = false;
-  boolean ip_selected = false;
+	boolean playSelected = false;
+	boolean ipSelected = false;
+	boolean portSelected = false;
 
-  boolean play_selected = false;
+	boolean wasKeyPressed = false;
 
-  boolean key_pressed = false;
+	boolean running = true;
 
-  ArrayList<String> console = new ArrayList<String>();
+	ArrayList<String> console = new ArrayList<String>();
 
-  boolean lost_connection = false;
-  boolean cannot_connect = false;
+	MouseInput mouse1 = new MouseInput(LEFT);
 
-  MouseInput mouse1 = new MouseInput(LEFT);
+	TextureStruct background = new TextureStruct(null, "Content/MenuBackground.png");
 
-  Menu() {
-    loadTextures();
-    running = true;
-  }
+  	GuiBox ipTextBox;
+	GuiBox portTextBox;
+	GuiBox playButton;
 
-  void handleInputs() {
-    if (mouse1.isPressed()) {
-      // Clicked IP
-      if ((mouseX > 200) && (mouseX < 600) && (mouseY > 270) && (mouseY < 318)) {
-        ip_selected = !ip_selected;
-        port_selected = false;
-      }
+	MenuWindow() {
+		background.image = loadImage(background.image_path); // loadImage can't be used in a decleration.
 
-      // Clicked PORT
-      if ((mouseX > 300) && (mouseX < 500) && (mouseY > 360) && (mouseY < 400)) {
-        port_selected = !port_selected;
-        ip_selected = false;
-      }
+    	/*                       x         y        w            h                                           text Size  */
+		ipTextBox = new GuiBox(width/2, height/2, width/2, (int)(height/8.5), 5 /*<- Border thickness */, (int)(height/13));
+		ipTextBox.fillColor = color(180);
+		ipTextBox.borderColor = color(140);
+		ipTextBox.text = "127.0.0.1";
 
-      // Clicked Play
-      if ((mouseX > 300) && (mouseX < 500) && (mouseY > 450) && (mouseY < 530)) {
-        if (ip.length() == 0) {
-          console.add("You did not enter an ip");
-        } else if (port.length() == 0) {
-          console.add("You did not enter a port");
-        } else {
-          ip_selected = false;
-          port_selected = false;
-          play_selected = true;
-          lost_connection = false;
-          cannot_connect = false;
-        }
-      }
-    }
+		portTextBox = new GuiBox(width/2, (int)(height/1.5), (int)(width/4.5), (int)(height/8.5), 5, (int)(height/13));
+		portTextBox.fillColor = color(180);
+		portTextBox.borderColor = color(140);
+		portTextBox.text = "5006";
 
-    if (keyPressed) {
-      if (!key_pressed) {
-        key_pressed = true;
-        if (ip_selected) {
-          if (((int)key >= 48 && (int)key <= 57) || (int)key == 46) { // `0` - `9` && `.`
-            if (ip.length() < 16) 
-              ip += key;
-          }
-          if ((int)key == 8) {
-            if (ip.length() > 0) {
-              ip = ip.substring(0, ip.length()-1);
-            }
-          }
-        } else if (port_selected) { 
-          if ((int)key >= 48 && (int)key <= 57) { // '0' - '9'
-            if (port.length() < 6)
-              port += key;
-          }
-          if ((int)key == 8) { // Backspace
-            if (port.length() != 0) {
-              port = port.substring(0, port.length()-1);
-            }
-          }
-        }
-      }
-    } else {
-      key_pressed = false;
-    }
-  }
+		playButton = new GuiBox(width/2, (int)(height/1.20), width/5, (int)(height/8.5), 5, (int)(height/8.75));
+		playButton.fillColor = color(180);
+		playButton.borderColor = color(140);
+		playButton.text = "PLAY";	
+	}
 
-  void drawGui() {
-    // Background
-    background(220);
-    textureMode(NORMAL);
-    noStroke();
-    pushMatrix();
-    translate(0, 0);
-    beginShape();
+	void handleUserInputs() {
+		if (mouse1.isPressed()) {
+			if (ipTextBox.isClicked()) {
+				ipSelected = !ipSelected;
+				portSelected = false;
+			}
+			else if (portTextBox.isClicked()) {
+				portSelected = !portSelected;
+				ipSelected = false;
+			}
+			else if (playButton.isClicked()) {
+				if (ipTextBox.text.length() <= 0) {
+					console.add("You did not enter an ip!");
+				}
+				else if (portTextBox.text.length() <= 0) {
+					console.add("You did not enter a port!");
+				}
+				else {
+					ipSelected = false;
+					portSelected = false;
+					playSelected = true;
+				}
+			}
+		}
+		if (keyPressed) {
+			if (!wasKeyPressed) {
+				wasKeyPressed = true;
+				if (ipSelected) {
+					if (validIPchar((int)key)) {
+						if (ipTextBox.text.length() < 15)
+							ipTextBox.text += key;
+					}
+					if ((int)key == 8 /* Backspace */) {
+						if (ipTextBox.text.length() != 0) 
+							ipTextBox.text = ipTextBox.text.substring(0, ipTextBox.text.length() - 1);
+					}
+				}
+				else if (portSelected) {
+					if (validPortchar((int)key)) {
+						if (portTextBox.text.length() < 6) 
+							portTextBox.text += key;
+					}
+					if ((int)key == 8 /* Backspace */) {
+						if (portTextBox.text.length() != 0)
+							portTextBox.text = portTextBox.text.substring(0, portTextBox.text.length() - 1);	
+					}
+				}
+			}
+		}
+		else {
+			wasKeyPressed = false;
+		}
+	}
 
-    texture(m_textures[0].image);
+	void drawGui() {
+		background(220);
+		image(background.image, 0, 0, width, height);
+     
+    ipTextBox.hasTextBox = ipSelected;
+		ipTextBox.drawGraphics();
 
-    vertex(0, 0, 0, 0);
-    vertex(width-1, 0, 1, 0);
-    vertex(width, height-1, 1, 1);
-    vertex(0, height-1, 0, 1);
-    endShape(CLOSE);
-    popMatrix();
+    portTextBox.hasTextBox = portSelected;
+		portTextBox.drawGraphics();
+		playButton.drawGraphics();
 
-    fill(0);
-    // Ip
-    textSize(30);
-    text(ip, 240, 305);
+		textSize(50);
+		text("IP", width/2 - (width/4) - 50, height/2 + 32);
+		text("PORT", width/2 - (width/6) - 120, (int)(height/1.5) + 32);
 
-    // Port
-    textSize(30);
-    text(port, 340, 390);
+		// Error log
+		int text_size = 16;
+		textSize(text_size);
+		if (console.size() > 6) {
+			console.remove(0);
+		}
+		int color_fade = 255 - (80 * (console.size()-1));
+		int position_y = height - (text_size * console.size());
+		for (String error : console) {
+			fill(255, 0, 0, color_fade);
+			text(error, width - ((text_size/2) * error.length()) - (text_size/2), position_y);
+			position_y += text_size;
+			color_fade += 80;
+		}
 
-    // Version
-    textSize(15);
-    text(version, 65, 593);
+		// Version
+		fill(0);
+		textSize(20);
+		text("BETA: " + version, 5, height-5);
+	}
 
-    // Typing marker
-    stroke(0);
-    strokeWeight(3);
-    if (ip_selected) {
-      line(240 + (ip.length() * 19), 305, 240 + (ip.length() * 19) + 20, 305);
-    } else if (port_selected) {
-      line(340 + (port.length() * 19), 390, 340 + (port.length() * 19) + 20, 390);
-    } else if (play_selected) {
-      fill(0,0,0, 50);
-      rect(300, 450, 200, 80);
-    }
+	void clearErrors() {
+		console.clear();
+	}
 
-    textSize(16);
-    fill(255, 0, 0);
-    if (cannot_connect) {
-      console.add("Could Not Connect To Server...");
-      cannot_connect = false;
-    }
+  	boolean validIPchar(int nKey) {
+    	return (
+    		(nKey >= 48 && nKey <= 57) || //'0-9'
+    		nKey == 46 // '.'
+    		);
+  	}
+  
+  	boolean validPortchar(int nKey) {
+    	return (nKey >= 48 && nKey <= 57);
+  	}
 
-    if (lost_connection) {
-      console.add("Server Connection Lost...");
-      lost_connection = false;
-    }
-    
-    // Print console
-    if (console.size() > 6) {
-      console.remove(0);
-    }
-    int color_fade = 255 - (80 * (console.size()-1));
-    int position_y = 595 - (16 * console.size());
-    for (String error : console) {
-      fill(255,0,0, color_fade);
-      text(error, 800 - (8 * error.length()) - 8, position_y);
-      position_y += 16;
-      color_fade += 80;
-    }
-  }
+  	void lostConnection() {
+  		console.add("Server Connection Lost...");
+  	}
 
-  void loadTextures() {
-    surface.setResizable(false); // Shhh pretend this isn't here.
-    m_textures = new texture_data[] {
-      new texture_data(null, "Content/MenuBackground.png"), 
-    };
+  	void cantConnect() {
+  		console.add("Could not connect to Server...");
+  	}
 
-    // Load textures
-    for (int i = 0; i < m_textures.length; i++) {
-      m_textures[i].image = loadImage(m_textures[i].path);
-    }
-  }
+  	String getIp() {
+  		return ipTextBox.text;
+  	}
+
+  	int getPort() {
+  		return Integer.parseInt(portTextBox.text);
+  	}
 }

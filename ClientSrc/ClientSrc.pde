@@ -1,43 +1,52 @@
 import processing.net.*;
 
-Menu menu_window;
-Game game_window;
+MenuWindow MainMenu;
+GameWindow Game;
 
-// Main script.
+/* 
+Valid resolutions ->
+  size(800, 600);
+  size(800, 600);
+  size(1120 , 840);
+  size(800, 600);
+  size(1440, 1080);
+  Resolution ratio = 4 : 3
+*/
 void setup() {
   size(800, 600, P2D);
-  menu_window = new Menu();
-  menu_window.version = "4.0.3";
+  MainMenu = new MenuWindow();
+  MainMenu.version = "4.1.0";
 }
 
 void draw() {
-  if (menu_window.running) { 
-    menu_window.handleInputs();
-    menu_window.drawGui();
-    if (menu_window.play_selected) {
-      game_window = new Game();
-      if (game_window.connect_client(this, menu_window.ip, Integer.parseInt(menu_window.port))) {
-        game_window.running = true;
-        menu_window.running = false;
-        menu_window.play_selected = false;
-        menu_window.lost_connection = false;
-        menu_window.cannot_connect = false;
-        menu_window.console.clear();
-      } else {
-        menu_window.play_selected = false;
-        menu_window.cannot_connect = true;
+  if (MainMenu.running) {
+    MainMenu.handleUserInputs();
+    MainMenu.drawGui();
+
+    if (MainMenu.playSelected) {
+      Game = new GameWindow();
+      if (Game.couldConnectTo(this, MainMenu.getIp(), MainMenu.getPort())) {
+        Game.running = true;
+        MainMenu.running = false;
+        MainMenu.clearErrors();
       }
+      else {
+        MainMenu.cantConnect();
+      }
+      MainMenu.playSelected = false;
     }
-  } else if (game_window.running) {
-    game_window.handleNetwork();
-    if (game_window.initalised) {
-      game_window.handleInputs();
-      game_window.drawGui();
+  }
+  else if (Game.running) {
+    Game.checkNetwork();
+    if (Game.initalised) {
+      Game.handleUserInputs();
+      Game.drawGui();
     }
-    if (!game_window.m_client.active()) {
-      game_window.running = false;
-      menu_window.running = true;
-      menu_window.lost_connection = true;
+
+    if (!Game.isConnected()) {
+      Game.running = false;
+      MainMenu.running = true;
+      MainMenu.lostConnection();
     }
   }
 }

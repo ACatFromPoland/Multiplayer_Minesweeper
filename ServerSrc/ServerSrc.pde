@@ -1,15 +1,15 @@
 import processing.net.*;
 import java.net.InetAddress;
-Server server = new Server(this, 5006);
 
-Game game_data;
-Event client_update = new Event(6);
-Event client_restart = new Event(1500);
+// Change port here if needed.
+Server GameServer = new Server(this, 5006);
 
-// 185 is basically the max
-int grid_dimension = 35;
-int bombs = 400;
-int max_players = 16;
+Game GameData;
+Event UpdateClient = new Event(6);
+Event ResetClient = new Event(1000);
+
+int g_GridSize = 8;
+int g_Bombs = 5;
 
 InetAddress inet;
 String myIP;
@@ -18,152 +18,84 @@ void setup() {
   frameRate(240);
   size(400, 200);
   surface.setResizable(false);
-  game_data = new Game(grid_dimension, bombs);
-  
-  // Thank you 
+  GameData = new Game();
+
+  // Thank you CS171 
   try {
     inet = InetAddress.getLocalHost();
     myIP = inet.getHostAddress();
   }
   catch (Exception e) {
     e.printStackTrace();
-    myIP = "couldnt get IP";
+    myIP = "Could not get IP";
   }
+
+  fill(0);
+  textSize(23);
 }
 
 void draw() {
-  fill(0);
-  textSize(23);
   text("Server LAN IP: " + myIP, width/14, height/1.9);
   text("Port: 5006", width/14, height/1.2);
 
-  if (client_update.active()) {
-    // update client screens
-    DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
-    packet.id = 5;
+  if (UpdateClient.active()) {
+    ServerDataPacket packet = new ServerDataPacket();
+    packet.id = 1;
+    packet.int_array[1] = g_Bombs - GameData.client_flags;
+    packet.int_array[2] = GameData.game_state;
+    packet.screen_array = new int[g_GridSize * g_GridSize];
+
     int i = 0;
-    for (int y = 0; y < grid_dimension; y++) {
-      for (int x = 0; x < grid_dimension; x++) {
-        packet.screen[i] = game_data.grid_client[x][y];
+    for (int y = 0; y < g_GridSize; y++) {
+      for (int x = 0; x < g_GridSize; x++) {
+        packet.screen_array[i] = GameData.client_grid[x][y];
         i++;
       }
     }
-    byte[] response = packageData(packet);
-    server.write(response);
-  }
-  if (client_restart.active() && game_data.game_over) {
-    // setup() 
-    game_data = new Game(grid_dimension, bombs);
-    game_data.game_over = false;
-    DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
-    packet.id = 6;
-    packet.cells[0][0] = grid_dimension;
-    packet.cells[0][1] = bombs;
-    int i = 0;
-    for (int y = 0; y < grid_dimension; y++) {
-      for (int x = 0; x < grid_dimension; x++) {
-        packet.screen[i] = game_data.grid_client[x][y];
-        i++;
-      }
-    }
-    byte[] response = packageData(packet);
-    server.write(response);
-    // send new grid data to clients
-  }
 
-  if (game_data.m_bombs == 0 && bombs == game_data.user_flags) {
-    game_data.game_over = true;
-    //send win event to clients
-    //start game_over sequence
+    byte[] message = packageServerData(packet);
+    GameServer.write(message);
   }
-
-  Client client = server.available();
-  {
-    if (client != null) {
-      byte[] raw_data = client.readBytes();
-      if (raw_data != null) {
-        DataPacket data = parseData(raw_data);
-        if (data != null) {
-          if (data.id == 0) { // Request for screen data
-            serverEvent(client);
-          } else if (data.id == 1) { // Request to reveal cell
-            int type = game_data.getCell(data.cells[0][0], data.cells[0][1]);
-            if (type == 9) { // Game Over
-              for (int y = 0; y < game_data.grid_client.length; y++) {
-                for (int x = 0; x < game_data.grid_client.length; x++) {
-                  game_data.grid_client[x][y] = game_data.getCell(x, y);
-                }
-              }
-              type = 12;
-              game_data.grid_client[data.cells[0][0]][data.cells[0][1]] = type;
-              game_data.game_over = true;
-              client_restart.last_frame_count = frameCount;
-              DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
-              packet.id = 5;
-              int i = 0;
-              for (int y = 0; y < grid_dimension; y++) {
-                for (int x = 0; x < grid_dimension; x++) {
-                  packet.screen[i] = game_data.grid_server[x][y];
-                  i++;
-                }
-              }
-              byte[] response = packageData(packet);
-              server.write(response);
-            } else if (type == 10) { // 
-              game_data.floodFill(data.cells[0][0], data.cells[0][1]);
-            } else {
-              DataPacket packet = new DataPacket(grid_dimension * 2, max_players);
-              packet.id = 1;
-              packet.cells[0] = new int[]{data.cells[0][0], data.cells[0][1], type};
-              game_data.grid_client[data.cells[0][0]][data.cells[0][1]] = type;
-              byte[] response = packageData(packet);
-              server.write(response);
-            }
-          } else if (data.id == 2) { // Flag request
-            // Stop client from spamming id.2 && id.3 later
-            if (game_data.grid_server[data.cells[0][0]][data.cells[0][1]] == 9) {
-              game_data.m_bombs -= 1;
-            }
-            game_data.user_flags += 1;
-            DataPacket packet = new DataPacket(grid_dimension * 2, max_players);
-            packet.id = 2;
-            packet.cells[0] = new int[] {data.cells[0][0], data.cells[0][1], 11};
-            game_data.grid_client[data.cells[0][0]][data.cells[0][1]] = 11;
-            byte[] response = packageData(packet);
-            server.write(response);
-          } else if (data.id == 3) { // Unflag request
-            if (game_data.grid_server[data.cells[0][0]][data.cells[0][1]] == 9) {
-              game_data.m_bombs += 1;
-            }
-            game_data.user_flags -= 1;
-            DataPacket packet = new DataPacket(grid_dimension * 2, max_players);
-            packet.id = 3;
-            packet.cells[0] = new int[] {data.cells[0][0], data.cells[0][1], 0};
-            game_data.grid_client[data.cells[0][0]][data.cells[0][1]] = 0;
-            byte[] response = packageData(packet);
-            server.write(response);
-          }
-          // End of similarities
-        }
-      }
-    }
+  
+  if (ResetClient.active() && GameData.isGameOver()) {
+    GameData = new Game();
   }
+  
+  if (GameData.client_flags == g_Bombs && GameData.bombs_left == 0 && !GameData.game_over) {
+    GameData.game_over = true;
+    GameData.game_state = 2;
+    ResetClient.last_frame_count = frameCount;
+    GameData.revealGameOver();
+  }
+  
+  Client client = GameServer.available();
+  ClientDataPacket data = getNextMessage();
+  GameData.handleData(data);
 }
 
-void serverEvent(Client joining_Client) {
-  DataPacket packet = new DataPacket(grid_dimension * grid_dimension, max_players);
+void serverEvent(Client joining_client) {
+  ServerDataPacket packet = new ServerDataPacket();
   packet.id = 0;
-  packet.max_player_size = max_players;
-  packet.cells[0][0] = game_data.m_bombs;
-  packet.cells[0][1] = grid_dimension;  
+  packet.int_array[0] = g_GridSize;
+  packet.int_array[1] = g_Bombs - GameData.client_flags;
+  packet.screen_array = new int[g_GridSize * g_GridSize];
 
   int i = 0;
-  for (int y = 0; y < game_data.grid_server.length; y++) {
-    for (int x = 0; x < game_data.grid_server.length; x++) {
-      packet.screen[i] = game_data.grid_client[x][y];
+  for (int y = 0; y < g_GridSize; y++) {
+    for (int x = 0; x < g_GridSize; x++) {
+      packet.screen_array[i] = GameData.client_grid[x][y];
       i++;
     }
   }
-  byte[] response = packageData(packet);
-  joining_Client.write(response);
+
+  byte[] message = packageServerData(packet);
+  GameServer.write(message);
+}
+
+ClientDataPacket getNextMessage() {
+  Client client = GameServer.available();
+  if (client == null) return null;
+  byte[] raw_data = client.readBytes();
+  if (raw_data == null) return null;
+  return parseBytes(raw_data);
 }
