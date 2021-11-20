@@ -1,11 +1,22 @@
+
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 
-ClientDataPacket parseBytes(byte[] raw_data) {
+byte[] packageClientData(ClientDataPacket p) {
 	try {
-		return (ClientDataPacket) writeToObject(raw_data);
+		return writeToByteArray(p);
+	}
+	catch (IOException e) {
+		println("Packet io exception");
+		return null;
+	}
+}
+
+ServerDataPacket parseBytes(byte[] raw_data) {
+	try {
+		return (ServerDataPacket) writeToObject(raw_data);
 	}
 	catch (IOException e) {
 		println("Packet io exception");
@@ -13,16 +24,6 @@ ClientDataPacket parseBytes(byte[] raw_data) {
 	}
 	catch (ClassNotFoundException e) {
 		println("Class not found exception");
-		return null;
-	}
-}
-
-byte[] packageServerData(ServerDataPacket p) {
-	try {
-		return writeToByteArray(p);
-	}
-	catch (IOException e) {
-		println("Packet io exception");
 		return null;
 	}
 }
